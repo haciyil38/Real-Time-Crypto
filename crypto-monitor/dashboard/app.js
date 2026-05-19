@@ -1,15 +1,11 @@
 /* ── Config ── */
 const WS_URL       = `ws://${location.host}/ws`;
 const API_URL      = `http://${location.host}`;
-const POLL_MS      = 1000;
 const RECONNECT_MS = 3000;
-const WS_TIMEOUT   = 4000;   // fallback to polling if WS not connected within 4s
 
 /* ── Transport state ── */
-let ws            = null;
-let wsConnected   = false;
-let pollingActive = false;
-let wsAttempts    = 0;
+let ws          = null;
+let wsConnected = false;
 
 /* ── App state ── */
 let chart        = null;
@@ -268,32 +264,16 @@ function handleSnapshot(snap) {
 }
 
 /* ══════════════════════════════════════════
-   TRANSPORT 1 — WebSocket (preferred)
+   TRANSPORT — WebSocket uniquement
 ══════════════════════════════════════════ */
 function connectWS() {
-  if (pollingActive) return;
   setStatus('h-ws', 'wrn', 'Connecting…');
-  wsAttempts++;
 
-  try {
-    ws = new WebSocket(WS_URL);
-  } catch (_) {
-    startPolling();
-    return;
-  }
-
-  const failTimer = setTimeout(() => {
-    if (!wsConnected) {
-      console.warn('WS timeout — switching to HTTP polling');
-      try { ws.close(); } catch (_) {}
-      startPolling();
-    }
-  }, WS_TIMEOUT);
+  try { ws = new WebSocket(WS_URL); }
+  catch (_) { setStatus('h-ws', 'err', 'WS unavailable'); return; }
 
   ws.onopen = () => {
     wsConnected = true;
-    wsAttempts  = 0;
-    clearTimeout(failTimer);
     setStatus('h-ws', 'ok', 'WebSocket ✓');
   };
 
@@ -308,53 +288,11 @@ function connectWS() {
 
   ws.onclose = () => {
     wsConnected = false;
-    if (pollingActive) return;
-    if (wsAttempts >= 3) {
-      // 3 failed attempts → give up on WS, use polling
-      clearTimeout(failTimer);
-      startPolling();
-    } else {
-      setStatus('h-ws', 'wrn', `Reconnecting… (${wsAttempts}/3)`);
-      setTimeout(connectWS, RECONNECT_MS);
-    }
+    setStatus('h-ws', 'wrn', 'Reconnecting…');
+    setTimeout(connectWS, RECONNECT_MS);
   };
 
   ws.onerror = () => { try { ws.close(); } catch (_) {} };
-}
-
-/* ══════════════════════════════════════════
-   TRANSPORT 2 — HTTP Polling (fallback)
-══════════════════════════════════════════ */
-async function pollSnapshot() {
-  if (!pollingActive) return;
-  try {
-    const res  = await fetch(`${API_URL}/api/snapshot`);
-    const snap = await res.json();
-    handleSnapshot(snap);
-    setText('h-lat', `${Date.now() - new Date(snap.timestamp).getTime()} ms`);
-    setStatus('h-ws', 'wrn', 'Polling (WS blocked)');
-  } catch (_) {
-    setStatus('h-ws', 'err', 'Retrying…');
-  }
-  setTimeout(pollSnapshot, POLL_MS);
-}
-
-async function pollAlerts() {
-  if (!pollingActive) return;
-  try {
-    const url  = `${API_URL}/api/alerts/since?since=${encodeURIComponent(lastAlertTs)}&limit=20`;
-    const data = await (await fetch(url)).json();
-    for (const a of data) { addAlert(a); lastAlertTs = a.triggered_at; }
-  } catch (_) {}
-  setTimeout(pollAlerts, 2000);
-}
-
-function startPolling() {
-  if (pollingActive) return;
-  pollingActive = true;
-  console.info('HTTP polling activated');
-  pollSnapshot();
-  pollAlerts();
 }
 
 /* ── Health & anomaly (always HTTP) ── */
@@ -365,8 +303,7 @@ async function fetchHealth() {
     setHealth('h-mongo', data.mongodb, data.mongodb ? 'OK' : 'ERR');
     setHealth('h-kafka', data.kafka,   data.kafka   ? 'OK' : 'ERR');
     setText('h-cons', `${data.consumers_active} / 3`);
-    const rate = data.ingest_rate ?? 0;
-    setText('h-rate', pollingActive ? `${Math.round(1000 / POLL_MS)} poll/s` : `${rate} msg/s`);
+    setText('h-rate', `${data.ingest_rate ?? 0} msg/s`);
   } catch (_) {
     setHealth('h-mongo', false, 'ERR');
     setHealth('h-kafka', false, 'ERR');
@@ -421,4 +358,4 @@ initChart();
 initVolChart();
 fetchHealth();
 fetchAnomalyCount();
-connectWS();      // try WebSocket first — falls back to polling after 4s if blocked
+connectWS();

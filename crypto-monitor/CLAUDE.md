@@ -108,11 +108,14 @@ Puis connecter Compass sur `mongodb://localhost:27017`.
 
 ## Transport Dashboard → API
 
-L'API pousse les données de deux façons :
-1. **Snapshot** (toutes les secondes) : prix, KPIs, stats, alertes récentes
-2. **Trade stream** (temps réel) : chaque trade individuellement depuis Kafka via un thread dédié + asyncio.Queue → broadcast WS immédiat
+**WebSocket uniquement** — pas de fallback HTTP polling (exigence du prof).
 
-Le dashboard essaie d'abord le WebSocket. Si bloqué (réseau école avec Cloudflare WARP), bascule automatiquement sur HTTP polling après 3 tentatives. Affiché dans Pipeline Health : "WebSocket ✓" ou "Polling (WS blocked)".
+L'API pousse via WebSocket `/ws` :
+1. **Snapshot** (toutes les secondes) : prix, KPIs, stats, alertes récentes → `{ type: "snapshot", ... }`
+2. **Trade stream** (temps réel) : chaque trade individuellement depuis Kafka via thread dédié + asyncio.Queue → `{ type: "trade", ... }`
+3. **Alertes** : dépilées depuis MongoDB à chaque cycle → `{ type: "alert", ... }`
+
+En cas de déconnexion WS, le dashboard affiche "Reconnecting…" et retente toutes les 3 secondes — sans jamais basculer sur du polling REST. Les endpoints REST (`/api/health`, `/api/alerts/count`) restent pour les métriques ponctuelles (non temps réel).
 
 ## Anomaly detection — logique
 
