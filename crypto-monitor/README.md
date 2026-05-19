@@ -36,7 +36,7 @@ cp .env.example .env
 docker compose up -d --build
 ```
 
-Dashboard : **http://localhost**
+Dashboard : **[http://localhost](http://localhost:3000/)**
 
 ## Services
 
@@ -95,7 +95,7 @@ En cas de déconnexion, le dashboard reconnecte automatiquement toutes les 3 sec
 
 | Interface | URL |
 |-----------|-----|
-| Dashboard | http://localhost |
+| Dashboard | [http://localhost](http://localhost:3000/) |
 | API docs (Swagger) | http://localhost:8000/docs |
 | API health | http://localhost:8000/api/health |
 
