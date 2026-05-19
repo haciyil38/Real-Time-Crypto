@@ -1,0 +1,171 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:     #0d1117;
+  --card:   #161b22;
+  --border: #30363d;
+  --green:  #00ff88;
+  --red:    #ff4466;
+  --yellow: #f0c040;
+  --blue:   #58a6ff;
+  --text:   #e6edf3;
+  --muted:  #8b949e;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  min-height: 100vh;
+}
+
+/* ── Top bar ── */
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 20px;
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+}
+.logo { font-size: 15px; font-weight: 700; color: var(--green); letter-spacing: 1px; }
+.badge {
+  padding: 2px 9px; border-radius: 20px;
+  font-size: 11px; font-weight: 600; letter-spacing: .4px;
+}
+.badge-binance  { background:#f3ba2f18; color:#f3ba2f; border:1px solid #f3ba2f44; }
+.badge-coinbase { background:#1652f018; color:#5b8dee; border:1px solid #1652f044; }
+.live-wrap { display:flex; align-items:center; gap:5px; }
+.live-dot {
+  width:8px; height:8px; border-radius:50%; background:var(--green);
+  animation: pulse 1.4s infinite;
+}
+@keyframes pulse {
+  0%,100% { box-shadow:0 0 0 0 #00ff8866; }
+  50%      { box-shadow:0 0 0 5px transparent; }
+}
+.live-label { font-size:11px; font-weight:600; color:var(--green); }
+.spacer { flex:1; }
+.last-update { font-size:11px; color:var(--muted); }
+
+/* ── Ticker strip ── */
+.ticker {
+  display:flex; overflow-x:auto; background:#0a0e14;
+  border-bottom:1px solid var(--border); scrollbar-width:none;
+}
+.ticker::-webkit-scrollbar { display:none; }
+.ticker-item {
+  display:flex; align-items:center; gap:8px;
+  padding:6px 18px; border-right:1px solid var(--border);
+  white-space:nowrap; cursor:default;
+}
+.ticker-item:hover { background:var(--card); }
+.ticker-pair  { font-weight:600; }
+.ticker-price { font-weight:700; font-size:14px; }
+.ticker-chg   { font-size:11px; }
+.up   { color:var(--green); }
+.down { color:var(--red); }
+
+/* ── Layout ── */
+.grid { padding:14px; display:flex; flex-direction:column; gap:12px; }
+
+/* KPI row */
+.kpi-row { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+.kpi {
+  background:var(--card); border:1px solid var(--border);
+  border-radius:8px; padding:14px 16px;
+}
+.kpi-label { font-size:10px; text-transform:uppercase; letter-spacing:.8px; color:var(--muted); margin-bottom:6px; }
+.kpi-val   { font-size:22px; font-weight:700; }
+.kpi-sub   { font-size:11px; color:var(--muted); margin-top:3px; }
+
+/* Row 2 */
+.row2 { display:grid; grid-template-columns:60% 1fr; gap:12px; }
+
+/* Row 3 */
+.row3 { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+
+/* Generic card */
+.card { background:var(--card); border:1px solid var(--border); border-radius:8px; overflow:hidden; }
+.card-hd {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:9px 14px; border-bottom:1px solid var(--border);
+  font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.6px; color:var(--muted);
+}
+
+/* Chart tabs */
+.tabs { display:flex; gap:4px; }
+.tab {
+  padding:2px 9px; border-radius:4px; cursor:pointer;
+  font-size:11px; font-weight:600; color:var(--muted);
+  border:1px solid transparent; transition:all .15s;
+}
+.tab.active { background:#00ff8814; color:var(--green); border-color:#00ff8840; }
+.tab:hover:not(.active) { background:var(--border); color:var(--text); }
+
+#chart-container { height:300px; }
+
+/* Trades feed */
+.feed { height:338px; overflow-y:auto; scrollbar-width:thin; scrollbar-color:var(--border) transparent; }
+.trade-row {
+  display:grid; grid-template-columns:70px 90px 1fr 1fr;
+  padding:5px 14px; border-bottom:1px solid #1c2128;
+  font-size:12px; animation:fadein .25s ease;
+}
+.trade-row:hover { background:#1c2128; }
+.trade-row.large { background:#f0c04010; border-left:2px solid var(--yellow); }
+@keyframes fadein { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:none; } }
+.trade-exch          { font-size:11px; font-weight:600; text-transform:capitalize; }
+.exch-binance        { color:var(--yellow); }
+.exch-coinbase       { color:var(--blue); }
+.neutral             { color:var(--text); }
+.trade-pair { font-weight:600; }
+.trade-price { text-align:right; }
+.trade-qty   { text-align:right; color:var(--muted); }
+
+/* Alerts */
+.alerts-list { height:220px; overflow-y:auto; scrollbar-width:thin; scrollbar-color:var(--border) transparent; }
+.alert-row {
+  display:flex; align-items:flex-start; gap:9px;
+  padding:8px 14px; border-bottom:1px solid #1c2128;
+  animation:flash .5s ease;
+}
+@keyframes flash { 0%{background:#ffffff14;} 100%{background:transparent;} }
+.sev {
+  padding:1px 6px; border-radius:3px; font-size:10px; font-weight:700;
+  white-space:nowrap; margin-top:2px;
+}
+.sev-HIGH   { background:#ff446620; color:var(--red);    border:1px solid #ff446640; }
+.sev-MEDIUM { background:#f0c04020; color:var(--yellow); border:1px solid #f0c04040; }
+.sev-LOW    { background:#58a6ff20; color:var(--blue);   border:1px solid #58a6ff40; }
+.alert-body { flex:1; }
+.alert-type { font-weight:600; font-size:12px; }
+.alert-meta { color:var(--muted); font-size:11px; margin-top:1px; }
+.alert-time { color:var(--muted); font-size:10px; white-space:nowrap; }
+
+/* Volume chart */
+#vol-chart { height:220px; }
+
+/* Health panel */
+.health { padding:12px 14px; display:flex; flex-direction:column; gap:9px; }
+.health-row { display:flex; justify-content:space-between; align-items:center; font-size:12px; }
+.hl  { color:var(--muted); }
+.hv  { font-weight:600; }
+.ok  { color:var(--green); }
+.err { color:var(--red); }
+.wrn { color:var(--yellow); }
+
+/* Footer */
+.footer {
+  display:flex; align-items:center; justify-content:center; gap:14px;
+  padding:9px 20px; background:var(--card); border-top:1px solid var(--border);
+  color:var(--muted); font-size:11px;
+}
+.tech { padding:2px 7px; border-radius:3px; background:var(--border); font-size:10px; }
+
+@media(max-width:1100px) {
+  .kpi-row { grid-template-columns:repeat(2,1fr); }
+  .row2, .row3 { grid-template-columns:1fr; }
+}

@@ -13,10 +13,8 @@ services:
     image: confluentinc/cp-kafka:7.5.0
     container_name: kafka
     hostname: kafka
-    networks:
-      - crypto-net
-    ports:
-      - "9092:9092"
+    networks: [crypto-net]
+    ports: ["9092:9092"]
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
@@ -42,10 +40,8 @@ services:
     image: mongo:7.0
     container_name: mongodb
     hostname: mongodb
-    networks:
-      - crypto-net
-    ports:
-      - "27017:27017"
+    networks: [crypto-net]
+    ports: ["27017:27017"]
     environment:
       MONGO_INITDB_DATABASE: ${MONGO_DB:-crypto_monitor}
     volumes:
@@ -60,17 +56,60 @@ services:
   producer:
     build: ./producer
     container_name: producer
-    networks:
-      - crypto-net
+    networks: [crypto-net]
     depends_on:
-      kafka:
-        condition: service_healthy
-      mongodb:
-        condition: service_healthy
-    environment:
-      KAFKA_BOOTSTRAP: ${KAFKA_BOOTSTRAP:-kafka:9092}
-      KAFKA_TOPIC: ${KAFKA_TOPIC:-crypto.trades.raw}
-      MONGO_URI: ${MONGO_URI:-mongodb://mongodb:27017}
-      MONGO_DB: ${MONGO_DB:-crypto_monitor}
-      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      kafka:   { condition: service_healthy }
+      mongodb: { condition: service_healthy }
+    env_file: .env
+    restart: on-failure
+
+  consumer1:
+    build: ./consumer1_storage
+    container_name: consumer1
+    networks: [crypto-net]
+    depends_on:
+      kafka:   { condition: service_healthy }
+      mongodb: { condition: service_healthy }
+    env_file: .env
+    restart: on-failure
+
+  consumer2:
+    build: ./consumer2_aggregator
+    container_name: consumer2
+    networks: [crypto-net]
+    depends_on:
+      kafka:   { condition: service_healthy }
+      mongodb: { condition: service_healthy }
+    env_file: .env
+    restart: on-failure
+
+  consumer3:
+    build: ./consumer3_anomaly
+    container_name: consumer3
+    networks: [crypto-net]
+    depends_on:
+      kafka:   { condition: service_healthy }
+      mongodb: { condition: service_healthy }
+    env_file: .env
+    restart: on-failure
+
+  api:
+    build: ./api
+    container_name: api
+    networks: [crypto-net]
+    depends_on:
+      mongodb: { condition: service_healthy }
+    env_file: .env
+    ports: ["8000:8000"]
+    restart: on-failure
+
+  dashboard:
+    image: nginx:alpine
+    container_name: dashboard
+    networks: [crypto-net]
+    depends_on: [api]
+    volumes:
+      - ./dashboard:/usr/share/nginx/html:ro
+      - ./dashboard/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    ports: ["3000:80"]
     restart: on-failure
