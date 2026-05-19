@@ -34,12 +34,13 @@ const chartMarkers    = {}; // key: "pair:exchange" → array of LightweightChar
 /* ── Init charts ── */
 function initChart() {
   const el = document.getElementById('chart-container');
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
   chart = LightweightCharts.createChart(el, {
     layout:     { background: { color: '#161b22' }, textColor: '#8b949e' },
     grid:       { vertLines: { color: '#21262d' }, horzLines: { color: '#21262d' } },
     crosshair:  { mode: LightweightCharts.CrosshairMode.Normal },
     rightPriceScale: { borderColor: '#30363d' },
-    timeScale:  { borderColor: '#30363d', timeVisible: true, secondsVisible: false },
+    timeScale:  { borderColor: '#30363d', timeVisible: true, secondsVisible: false, timezone: tz },
     width: el.clientWidth, height: 300,
   });
   candleSeries = chart.addCandlestickSeries({
@@ -57,7 +58,7 @@ function initVolChart() {
     layout:  { background: { color: '#161b22' }, textColor: '#8b949e' },
     grid:    { vertLines: { color: '#21262d' }, horzLines: { color: '#21262d' } },
     rightPriceScale: { borderColor: '#30363d' },
-    timeScale: { borderColor: '#30363d', visible: false },
+    timeScale: { borderColor: '#30363d', visible: false, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone },
     width: el.clientWidth, height: 220,
   });
   volSeries = volChart.addHistogramSeries({ color: '#58a6ff88', priceFormat: { type: 'volume' } });
