@@ -1,60 +1,117 @@
 # Crypto Market Monitor — Real-Time Pipeline
 
-A production-ready streaming pipeline that ingests live trade data from Binance
-and Coinbase via WebSocket, processes it through Apache Kafka, stores results in
-MongoDB, and exposes them via a FastAPI backend with a real-time dashboard.
+Pipeline de streaming temps réel qui ingère les trades live depuis Binance et Coinbase via WebSocket, les traite via Apache Kafka, les stocke dans MongoDB et les expose via FastAPI avec un dashboard HTML/JS temps réel.
+
+Projet EFREI — Real-Time Data. Soutenance le 30 juin.
 
 ## Architecture
 
 ```
-Binance WS ──┐
-             ├──► Producer ──► Kafka (crypto.trades.raw) ──► Consumer 1 (storage)   ──► MongoDB
-Coinbase WS ─┘                                           ├──► Consumer 2 (aggregator) ──► MongoDB
-                                                         └──► Consumer 3 (anomaly)    ──► MongoDB
-                                                                                           │
-                                                                                     FastAPI (REST + WS)
-                                                                                           │
-                                                                                       Dashboard
+Binance WS (BTC/USDT, ETH/USDT) ─┐
+                                   ├─► Producer ──► Kafka (crypto.trades.raw)
+Coinbase WS (BTC-USD) ────────────┘                        │
+                                          ┌────────────────┼────────────────┐
+                                          ▼                ▼                ▼
+                                     Consumer 1       Consumer 2       Consumer 3
+                                     (stockage)      (agrégation)     (anomalies)
+                                          │                │                │
+                                          └────────────────┴────────────────┘
+                                                           │
+                                                       MongoDB
+                                                           │
+                                               FastAPI (REST + WebSocket)
+                                                           │
+                                                   Nginx → Dashboard
 ```
 
-## Prerequisites
+## Prérequis
 
 - [Docker](https://docs.docker.com/get-docker/) 24+
 - [Docker Compose](https://docs.docker.com/compose/) v2+
 
-## Setup
+## Démarrage
 
 ```bash
 cp .env.example .env
-docker compose up --build
+docker compose up -d --build
 ```
+
+Dashboard : **http://localhost**
 
 ## Services
 
-| Service    | Role                              | Port  |
-|------------|-----------------------------------|-------|
-| kafka      | Message broker (KRaft mode)       | 9092  |
-| mongodb    | Document store                    | 27017 |
-| producer   | Binance + Coinbase WS → Kafka     | —     |
-| consumer1  | Raw trade storage                 | —     |
-| consumer2  | VWAP / OHLCV aggregation          | —     |
-| consumer3  | Anomaly detection + alerts        | —     |
-| api        | FastAPI REST + WebSocket          | 8000  |
-| dashboard  | Nginx serving HTML/JS frontend    | 3000  |
+| Service | Rôle | Port |
+|---------|------|------|
+| `kafka` | Message broker (KRaft, sans Zookeeper) | 9092 |
+| `mongodb` | Stockage (trades, agrégats, alertes) | 27017 |
+| `producer` | WebSocket Binance + Coinbase → Kafka | — |
+| `consumer1` | Kafka → MongoDB `trades_raw` | — |
+| `consumer2` | Kafka → VWAP/OHLCV fenêtres 1m/5m/15m/1h → MongoDB `aggregates` | — |
+| `consumer3` | Kafka → détection anomalies → MongoDB `alerts` | — |
+| `api` | FastAPI REST + WebSocket push | 8000 |
+| `dashboard` | Nginx static files + reverse proxy | 80 |
 
-## Kafka Topic
+## MongoDB — collections
 
-`crypto.trades.raw` — all normalised trade events from both exchanges.
+| Collection | Contenu |
+|------------|---------|
+| `trades_raw` | Tous les trades bruts (exchange, pair, price, quantity, trade_id, timestamp) |
+| `aggregates` | VWAP + volume par fenêtre (1m/5m/15m/1h) par pair/exchange |
+| `alerts` | Anomalies détectées en temps réel |
 
-## Access
+## API — endpoints
 
-| Interface       | URL                          |
-|-----------------|------------------------------|
-| Dashboard       | http://localhost:3000        |
-| API docs        | http://localhost:8000/docs   |
-| API health      | http://localhost:8000/api/health |
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/trades` | Derniers trades (params : pair, exchange, limit) |
+| `GET /api/stats` | Agrégats VWAP/volume (params : pair, window) |
+| `GET /api/alerts` | Dernières alertes (params : limit, severity) |
+| `GET /api/alerts/count?minutes=10` | Nombre d'alertes sur N minutes |
+| `GET /api/health` | État Kafka, MongoDB, consumers, débit ingestion |
+| `GET /api/snapshot` | Snapshot complet : prix + stats + alertes |
+| `WS /ws` | Push temps réel : snapshots (1/s) + trades Kafka + alertes |
 
-## Status
+## Transport temps réel
 
-> Work in progress — ingestion layer complete.
-> Consumers, API, and dashboard are in active development.
+**WebSocket uniquement** — pas de fallback HTTP polling.
+
+Le dashboard reçoit 3 types de messages via WebSocket :
+- `{ type: "snapshot" }` — prix, KPIs, stats toutes les secondes
+- `{ type: "trade" }` — chaque trade individuel depuis Kafka (~50/s)
+- `{ type: "alert" }` — anomalies détectées en temps réel
+
+En cas de déconnexion, le dashboard reconnecte automatiquement toutes les 3 secondes.
+
+## Détection d'anomalies
+
+| Type | Condition | Sévérité |
+|------|-----------|----------|
+| `LARGE_TRADE` | Quantité > moyenne + 3×écart-type (fenêtre 500 trades) | HIGH / MEDIUM |
+| `PRICE_SPIKE` | Variation prix > 0.5% entre deux trades consécutifs | HIGH / MEDIUM |
+| `HIGH_FREQUENCY` | > 50 trades en 10 secondes sur un même pair | LOW |
+| `SPREAD_BINANCE_COINBASE` | Écart prix BTC Binance/Coinbase > 0.05% | HIGH / MEDIUM |
+
+## Accès
+
+| Interface | URL |
+|-----------|-----|
+| Dashboard | http://localhost |
+| API docs (Swagger) | http://localhost:8000/docs |
+| API health | http://localhost:8000/api/health |
+
+## Commandes utiles
+
+```bash
+# Voir les logs d'un service
+docker compose logs -f producer
+docker compose logs -f api
+
+# Vérifier que tout tourne
+docker compose ps
+
+# Arrêter sans perdre les données MongoDB
+docker compose down
+
+# Arrêter et supprimer les volumes
+docker compose down -v
+```
